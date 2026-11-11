@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --evaldo-azul: #1a1ab8;
+  --evaldo-azul-escuro: #10107a;
+  --evaldo-azul-claro: #eef0fb;
+  --evaldo-amarelo: #e1d800;
+  --evaldo-amarelo-claro: #fbf8c9;
+  --evaldo-vermelho: #cc1439;
+  --evaldo-vermelho-claro: #fce4e9;
+  --positivo: #1e8e4e;
+  --fundo: #f5f6fa;
+  --texto: #1b1d2a;
+}
+
+@layer base {
+  body {
+    @apply bg-fundo text-texto font-sans antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-extrabold italic text-evaldo-azul-escuro;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-card shadow-card;
+  }
+  /* Card de indicador: faixa amarela fina no topo */
+  .card-indicador {
+    @apply card border-t-4 border-evaldo-amarelo;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primario {
+    @apply btn bg-evaldo-azul text-white hover:bg-evaldo-azul-escuro;
+  }
+  .btn-secundario {
+    @apply btn border border-evaldo-azul text-evaldo-azul bg-white hover:bg-evaldo-azul-claro;
+  }
+  .btn-perigo {
+    @apply btn border border-evaldo-vermelho text-evaldo-vermelho bg-white hover:bg-evaldo-vermelho-claro;
+  }
+  .btn-whatsapp {
+    @apply btn bg-positivo text-white hover:brightness-110;
+  }
+  .campo {
+    @apply rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-evaldo-azul focus:outline-none focus:ring-2 focus:ring-evaldo-azul/20;
+  }
+  .rotulo {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500;
+  }
+
+  .tabela {
+    @apply w-full text-sm;
+  }
+  .tabela thead th {
+    @apply bg-evaldo-azul px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-white whitespace-nowrap;
+  }
+  .tabela thead th:first-child {
+    @apply rounded-tl-lg;
+  }
+  .tabela thead th:last-child {
+    @apply rounded-tr-lg;
+  }
+  .tabela tbody td {
+    @apply px-3 py-2 whitespace-nowrap border-b border-gray-100;
+  }
+  .tabela tbody tr:nth-child(even) {
+    @apply bg-evaldo-azul-claro/60;
+  }
+  .tabela tfoot td {
+    @apply bg-evaldo-amarelo-claro px-3 py-2 font-bold text-evaldo-azul-escuro whitespace-nowrap;
+  }
+  .num {
+    @apply text-right tabular-nums;
+  }
+}
