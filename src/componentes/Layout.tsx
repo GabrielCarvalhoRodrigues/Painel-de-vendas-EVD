@@ -32,6 +32,7 @@ const AREAS: Record<Area, { nome: string; inicio: string; itens: ItemMenu[] }> =
       { para: '/produtos', nome: 'Produtos do mês', icone: '▤', tela: 'produtos' },
       { para: '/produtos/pararam', nome: 'Pararam de vender', icone: '⚠', tela: 'produtos-pararam' },
       { para: '/produtos/variacao', nome: 'Vendeu mais ou menos', icone: '⇅', tela: 'produtos-variacao' },
+      { para: '/produtos/veiculos', nome: 'Veículos', icone: '⛟', tela: 'produtos-veiculos' },
       { para: '/importar-produtos', nome: 'Importar produtos', icone: '⇪', tela: 'importar-produtos' },
     ],
   },

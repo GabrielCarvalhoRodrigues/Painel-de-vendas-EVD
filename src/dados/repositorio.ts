@@ -13,6 +13,7 @@ import type {
   RelatorioProdutosLido,
   StatusContato,
   Venda,
+  VeiculoProduto,
   VendaProduto,
   Vendedor,
 } from '../tipos';
@@ -365,6 +366,7 @@ export function dadosImportacaoProdutos(lido: RelatorioProdutosLido) {
       qtde: l.qtde,
       valorTotal: l.valorTotal,
     })),
+    veiculos: lido.itensVeiculo ?? [],
   };
 }
 
@@ -400,6 +402,54 @@ export async function listarTodasVendasProdutos(): Promise<VendaProduto[]> {
       .range(de, ate),
   );
   return linhas.map(paraVendaProduto);
+}
+
+interface LinhaVeiculoProduto {
+  relatorio_id: string;
+  vendedor_codigo: string;
+  mes: string;
+  placa: string;
+  placa_texto: string;
+  veiculo: string;
+  marca: string;
+  modelo: string;
+  ano: number | null;
+  km: number | null;
+  cliente_nome: string;
+  cliente_telefone: string;
+  ultima_data: string | null;
+  pedidos: number;
+  produto_codigo: string;
+  produto_nome: string;
+  qtde: number | string;
+  valor_total: number | string;
+}
+
+/** Produtos aplicados nos veículos (pedidos com placa), de todos os meses. */
+export async function listarVeiculosProdutos(): Promise<VeiculoProduto[]> {
+  const linhas = await todasAsPaginas<LinhaVeiculoProduto>((de, ate) =>
+    supabase.from('veiculos_produto_mes').select('*').order('relatorio_id').order('placa').order('produto_codigo').range(de, ate),
+  );
+  return linhas.map((v) => ({
+    relatorioId: v.relatorio_id,
+    vendedorCodigo: v.vendedor_codigo,
+    mes: v.mes,
+    placa: v.placa,
+    placaTexto: v.placa_texto || v.placa,
+    veiculo: v.veiculo,
+    marca: v.marca,
+    modelo: v.modelo,
+    ano: v.ano,
+    km: v.km,
+    clienteNome: v.cliente_nome,
+    clienteTelefone: v.cliente_telefone,
+    ultimaData: v.ultima_data,
+    pedidos: n(v.pedidos),
+    produtoCodigo: v.produto_codigo,
+    produtoNome: v.produto_nome,
+    qtde: n(v.qtde),
+    valorTotal: n(v.valor_total),
+  }));
 }
 
 export async function listarVendasProdutos(mes: Mes): Promise<VendaProduto[]> {

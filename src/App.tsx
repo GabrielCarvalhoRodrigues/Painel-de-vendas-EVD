@@ -16,6 +16,7 @@ import { DeixaramDeComprar } from './telas/DeixaramDeComprar';
 import { FichaCliente } from './telas/FichaCliente';
 import { Importar } from './telas/Importar';
 import { ImportarProdutos } from './telas/ImportarProdutos';
+import { Veiculos } from './telas/Veiculos';
 import { Login, NovaSenha, SemAcesso, TelaAcesso, TelaCarregando, TelaErro } from './telas/Login';
 import { Produtos } from './telas/Produtos';
 import { Ranking } from './telas/Ranking';
@@ -78,6 +79,7 @@ function Rotas() {
           <Route path="produtos/visao" element={so('produtos-visao', <ProdutosVisaoGeral />)} />
           <Route path="produtos/pararam" element={so('produtos-pararam', <ProdutosPararam />)} />
           <Route path="produtos/variacao" element={so('produtos-variacao', <ProdutosVariacao />)} />
+          <Route path="produtos/veiculos" element={so('produtos-veiculos', <Veiculos />)} />
           <Route path="produto/:codigo" element={so('produto', <FichaProduto />)} />
           <Route path="cliente/:codigo" element={so('cliente', <FichaCliente />)} />
           <Route path="vendedores" element={so('vendedores', <Vendedores />)} />

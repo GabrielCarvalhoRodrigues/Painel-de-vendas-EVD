@@ -22,6 +22,7 @@ const TABELAS = [
   'contatos_clientes',
   'relatorios_produtos',
   'vendas_produto_mes',
+  'veiculos_produto_mes',
 ];
 
 let db: PGlite;

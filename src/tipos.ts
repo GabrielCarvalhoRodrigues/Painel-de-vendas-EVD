@@ -89,6 +89,8 @@ export interface Veiculo {
   placaTexto: string;
   /** Marca/modelo/ano/cor como o ERP escreve (vazio quando o relatório só traz a placa). */
   descricao: string;
+  marca: string;
+  modelo: string;
   ano: number | null;
   /** Maior KM informado (null quando não informado). */
   km: number | null;
@@ -107,6 +109,35 @@ export interface Veiculo {
   produtos: { codigo: string; nome: string; qtde: number; valorTotal: number }[];
 }
 
+/** Produto aplicado num veículo, por vendedor (é o que vai para o banco). */
+export interface ItemVeiculo {
+  vendedorCodigo: string;
+  placa: string;
+  placaTexto: string;
+  veiculo: string;
+  /** Primeira palavra da descrição (ex.: RENAULT). */
+  marca: string;
+  /** Descrição até o ano (ex.: RENAULT RE-KWID 1.0). */
+  modelo: string;
+  ano: number | null;
+  km: number | null;
+  clienteNome: string;
+  clienteTelefone: string;
+  ultimaData: string | null;
+  /** Pedidos do veículo com esse vendedor no mês. */
+  pedidos: number;
+  produtoCodigo: string;
+  produtoNome: string;
+  qtde: number;
+  valorTotal: number;
+}
+
+/** ItemVeiculo salvo no banco. */
+export interface VeiculoProduto extends ItemVeiculo {
+  relatorioId: string;
+  mes: Mes;
+}
+
 export interface RelatorioProdutosLido {
   /** AAAA-MM-DD */
   dataInicial: string;
@@ -119,6 +150,8 @@ export interface RelatorioProdutosLido {
   linhas: LinhaProduto[];
   /** Veículos com placa encontrados no arquivo (só na leitura; não vai para o banco). */
   veiculos?: Veiculo[];
+  /** Produtos por veículo e vendedor (gravados no banco para a aba Veículos). */
+  itensVeiculo?: ItemVeiculo[];
   nomeArquivo: string;
 }
 

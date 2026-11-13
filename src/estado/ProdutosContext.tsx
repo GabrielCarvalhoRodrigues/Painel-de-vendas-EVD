@@ -10,7 +10,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { mensagemDeErro } from '../dados/erros';
 import * as repo from '../dados/repositorio';
 import { analisarProdutos, type AnaliseProdutos, type Medida } from '../regras/produtos';
-import type { Canal, Mes, RelatorioProdutos, VendaProduto } from '../tipos';
+import type { Canal, Mes, RelatorioProdutos, VeiculoProduto, VendaProduto } from '../tipos';
 import { TODOS, usePainel } from './PainelContext';
 
 interface Produtos {
@@ -39,6 +39,10 @@ interface Produtos {
   /** Data final mais antiga entre os relatórios parciais do mês (para o aviso). */
   parcialAte: string | null;
   analise: AnaliseProdutos | null;
+  /** Produtos aplicados nos veículos (todos os vendedores e meses). */
+  veiculos: VeiculoProduto[];
+  /** Erro ao ler os veículos (ex.: migration de veículos ainda não aplicada). */
+  erroVeiculos: string;
 }
 
 const Ctx = createContext<Produtos | null>(null);
@@ -51,6 +55,8 @@ export function ProdutosProvider({ children }: { children: ReactNode }) {
   const [erro, setErro] = useState('');
   const [relatorios, setRelatorios] = useState<RelatorioProdutos[]>([]);
   const [vendas, setVendas] = useState<VendaProduto[]>([]);
+  const [veiculos, setVeiculos] = useState<VeiculoProduto[]>([]);
+  const [erroVeiculos, setErroVeiculos] = useState('');
   const [mesEscolhido, setMesSel] = useState<Mes | null>(null);
   const [canal, setCanal] = useState<Canal | ''>('');
   const [medidaEscolhida, setMedida] = useState<Medida>('qtde');
@@ -62,9 +68,19 @@ export function ProdutosProvider({ children }: { children: ReactNode }) {
     setCarregando(true);
     setErro('');
     try {
-      const [r, v] = await Promise.all([repo.listarRelatoriosProdutos(), repo.listarTodasVendasProdutos()]);
+      // Veículos à parte: se falharem, as outras telas de produtos continuam funcionando.
+      const [r, v, vei] = await Promise.all([
+        repo.listarRelatoriosProdutos(),
+        repo.listarTodasVendasProdutos(),
+        repo.listarVeiculosProdutos().then(
+          (x) => ({ ok: true as const, x }),
+          (e) => ({ ok: false as const, e }),
+        ),
+      ]);
       setRelatorios(r);
       setVendas(v);
+      setVeiculos(vei.ok ? vei.x : []);
+      setErroVeiculos(vei.ok ? '' : mensagemDeErro(vei.e));
     } catch (e) {
       setErro(mensagemDeErro(e));
     } finally {
@@ -101,6 +117,8 @@ export function ProdutosProvider({ children }: { children: ReactNode }) {
     invalidar,
     pedir,
     relatorios,
+    veiculos,
+    erroVeiculos,
     setMesSel,
     canal,
     setCanal,

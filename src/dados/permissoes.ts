@@ -16,6 +16,7 @@ export type Tela =
   | 'produtos-visao'
   | 'produtos-pararam'
   | 'produtos-variacao'
+  | 'produtos-veiculos'
   | 'produto'
   | 'cliente'
   | 'vendedores' // metas de todos e comparativo entre vendedores
