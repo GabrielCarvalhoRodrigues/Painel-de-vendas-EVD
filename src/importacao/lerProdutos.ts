@@ -1,4 +1,4 @@
-import type { Canal, LinhaProduto, RelatorioProdutosLido, Vendedor } from '../tipos';
+import type { Canal, LinhaProduto, RelatorioProdutosLido, Veiculo, Vendedor } from '../tipos';
 import { mesDeData, ultimoDiaDoMes } from '../utils/meses';
 import { decodificar, dividirLinha, ErroImportacao, normalizar } from './lerCsv';
 import { numeroBR } from './numeros';
@@ -16,6 +16,10 @@ const NOMES_COLUNA = {
   vendedor: ['VENDEDOR', 'VEN', 'VEN.', 'COD.VENDEDOR', 'CODVENDEDOR', 'CODIGOVENDEDOR', 'VEND.', 'VEND'],
   valorTotal: ['VR.TOTAL', 'VLR.TOTAL', 'VALORTOTAL', 'TOTAL', 'VALOR'],
   data: ['DATA', 'EMISSAO', 'DATAEMISSAO', 'DT.EMISSAO', 'DATADAVENDA', 'DATAVENDA'],
+  // Usadas só na lista de veículos (opcionais).
+  cliente: ['CLIENTE', 'NOMECLIENTE', 'NOMEDOCLIENTE', 'RAZAOSOCIAL'],
+  telefone: ['TELEFONE', 'FONE', 'TEL', 'TEL.', 'CELULAR'],
+  pedido: ['PEDIDO', 'NºDOC', 'N°DOC', 'NODOC', 'N.DOC', 'NUMDOC', 'DOCUMENTO', 'DOC', 'NUMPEDIDO', 'NOTA'],
 } as const;
 
 type Coluna = keyof typeof NOMES_COLUNA;
@@ -59,6 +63,37 @@ const PLACA = /(?:^|[^A-Z0-9])[A-Z]{3}-?\d[A-Z0-9]\d{2}(?![A-Z0-9])/;
  */
 export function canalDaPlaca(texto: string | undefined): Canal {
   return PLACA.test((texto ?? '').toUpperCase()) ? 'oficina' : 'balcao';
+}
+
+const PLACA_PARTES = /(?:^|[^A-Z0-9])([A-Z]{3})-?(\d[A-Z0-9]\d{2})(?![A-Z0-9])/;
+
+export type VeiculoLido = Pick<Veiculo, 'placa' | 'placaTexto' | 'descricao' | 'ano' | 'km'>;
+
+/**
+ * Lê o veículo de "VEÍCULO: RENAULT RE-KWID 1.0 2020 BRANCO - QWS-2F81 - KM: 0000000001"
+ * ou de uma placa solta ("ABC1D23"). Sem placa, devolve null.
+ */
+export function lerVeiculo(texto: string | undefined): VeiculoLido | null {
+  const t = (texto ?? '').replace(/"/g, '').trim().toUpperCase();
+  const m = t.match(PLACA_PARTES);
+  if (!m) return null;
+  const inicioPlaca = m.index! + m[0].indexOf(m[1]);
+  const descricao = t
+    .slice(0, inicioPlaca)
+    .replace(/^VE[IÍ]CULO\s*:\s*/, '')
+    .replace(/[\s-]+$/, '')
+    .trim();
+  const anos = descricao.match(/\b(?:19[5-9]\d|20\d{2})\b/g);
+  const km = t.slice(inicioPlaca).match(/KM\s*:?\s*(\d+)/);
+  const kmNum = km ? Number(km[1]) : NaN;
+  return {
+    placa: m[1] + m[2],
+    placaTexto: `${m[1]}-${m[2]}`,
+    descricao,
+    ano: anos ? Number(anos.at(-1)) : null,
+    // O ERP grava 0000000001 quando o KM não foi informado.
+    km: kmNum > 1 ? kmNum : null,
+  };
 }
 
 /** Coluna sem título onde o ERP põe "VEÍCULO: ..." (procura nas primeiras linhas de dados). */
@@ -105,6 +140,8 @@ export function lerTextoProdutos(texto: string, nomeArquivo = ''): RelatorioProd
   let vendedorAtual = null as Vendedor | null;
   const datas: string[] = [];
   const soma = new Map<string, LinhaProduto>();
+  const veiculos = new Map<string, Veiculo & { docs: Set<string> }>();
+  const campo = (campos: string[], i: number | undefined) => (i !== undefined ? (campos[i] ?? '').replace(/"/g, '').trim() : '');
 
   const lerGrupoVendedor = (linha: string) => {
     const m = linha.replace(/"/g, '').match(/Vendedor\s*:\s*(\d+)\s*-\s*([^;\n]+)/i);
@@ -160,9 +197,13 @@ export function lerTextoProdutos(texto: string, nomeArquivo = ''): RelatorioProd
     }
     if (vendedor.nome) nomesVendedor.set(vendedor.codigo, vendedor.nome);
 
+    let dataLinha: string | null = null;
     if (col.data !== undefined) {
       const d = (campos[col.data] ?? '').match(/(\d{2}\/\d{2}\/\d{4})/);
-      if (d) datas.push(dataIso(d[1]));
+      if (d) {
+        dataLinha = dataIso(d[1]);
+        datas.push(dataLinha);
+      }
     }
 
     const canal = canalDaPlaca(campos[col.placa]);
@@ -181,6 +222,50 @@ export function lerTextoProdutos(texto: string, nomeArquivo = ''): RelatorioProd
         qtde,
         valorTotal,
       });
+    }
+
+    // Veículo com placa: junta tudo o que foi vendido para ele no período.
+    const lido = canal === 'oficina' ? lerVeiculo(campos[col.placa]) : null;
+    if (lido) {
+      let v = veiculos.get(lido.placa);
+      if (!v) {
+        v = {
+          ...lido,
+          clienteNome: '',
+          clienteTelefone: '',
+          vendedores: [],
+          primeiraData: null,
+          ultimaData: null,
+          pedidos: 0,
+          itens: 0,
+          valorTotal: 0,
+          produtos: [],
+          docs: new Set(),
+        };
+        veiculos.set(lido.placa, v);
+      }
+      if (lido.descricao.length > v.descricao.length) v.descricao = lido.descricao;
+      if (lido.ano && !v.ano) v.ano = lido.ano;
+      if (lido.km && (!v.km || lido.km > v.km)) v.km = lido.km;
+      const cliente = campo(campos, col.cliente);
+      const fone = campo(campos, col.telefone);
+      if (cliente) v.clienteNome = cliente;
+      if (fone) v.clienteTelefone = fone;
+      if (!v.vendedores.includes(vendedor.codigo)) v.vendedores.push(vendedor.codigo);
+      if (dataLinha) {
+        if (!v.primeiraData || dataLinha < v.primeiraData) v.primeiraData = dataLinha;
+        if (!v.ultimaData || dataLinha > v.ultimaData) v.ultimaData = dataLinha;
+      }
+      v.docs.add(campo(campos, col.pedido) || `linha-${n}`);
+      v.itens += qtde;
+      v.valorTotal += valorTotal;
+      const p = v.produtos.find((x) => x.codigo === codigo);
+      if (p) {
+        p.qtde += qtde;
+        p.valorTotal += valorTotal;
+      } else {
+        v.produtos.push({ codigo, nome: nome || codigo, qtde, valorTotal });
+      }
     }
   }
 
@@ -209,7 +294,11 @@ export function lerTextoProdutos(texto: string, nomeArquivo = ''): RelatorioProd
   for (const l of linhasProduto) if (!l.vendedorNome) l.vendedorNome = nomesVendedor.get(l.vendedorCodigo) ?? `Vendedor ${l.vendedorCodigo}`;
   const vendedores = [...new Map(linhasProduto.map((l) => [l.vendedorCodigo, { codigo: l.vendedorCodigo, nome: l.vendedorNome }])).values()];
 
-  return { dataInicial, dataFinal, mes, parcial, vendedores, linhas: linhasProduto, nomeArquivo };
+  const listaVeiculos: Veiculo[] = [...veiculos.values()]
+    .map(({ docs, ...v }) => ({ ...v, pedidos: docs.size }))
+    .sort((a, b) => a.placa.localeCompare(b.placa));
+
+  return { dataInicial, dataFinal, mes, parcial, vendedores, linhas: linhasProduto, veiculos: listaVeiculos, nomeArquivo };
 }
 
 export function lerRelatorioProdutos(bytes: ArrayBuffer | Uint8Array, nomeArquivo = ''): RelatorioProdutosLido {

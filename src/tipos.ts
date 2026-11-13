@@ -81,6 +81,32 @@ export interface LinhaProduto {
   valorTotal: number;
 }
 
+/** Veículo (com placa) atendido no período, extraído do relatório de produtos. */
+export interface Veiculo {
+  /** Placa sem traço, em maiúsculas (ex.: QWS2F81). */
+  placa: string;
+  /** Placa como veio no relatório (ex.: QWS-2F81). */
+  placaTexto: string;
+  /** Marca/modelo/ano/cor como o ERP escreve (vazio quando o relatório só traz a placa). */
+  descricao: string;
+  ano: number | null;
+  /** Maior KM informado (null quando não informado). */
+  km: number | null;
+  clienteNome: string;
+  clienteTelefone: string;
+  /** Códigos dos vendedores que atenderam o veículo. */
+  vendedores: string[];
+  /** AAAA-MM-DD da primeira e da última venda (null sem coluna de data). */
+  primeiraData: string | null;
+  ultimaData: string | null;
+  /** Pedidos/documentos diferentes (ou linhas, quando não há coluna de pedido). */
+  pedidos: number;
+  itens: number;
+  valorTotal: number;
+  /** Produtos do veículo, somados por código. */
+  produtos: { codigo: string; nome: string; qtde: number; valorTotal: number }[];
+}
+
 export interface RelatorioProdutosLido {
   /** AAAA-MM-DD */
   dataInicial: string;
@@ -91,6 +117,8 @@ export interface RelatorioProdutosLido {
   /** Vendedores presentes no arquivo. */
   vendedores: Vendedor[];
   linhas: LinhaProduto[];
+  /** Veículos com placa encontrados no arquivo (só na leitura; não vai para o banco). */
+  veiculos?: Veiculo[];
   nomeArquivo: string;
 }
 

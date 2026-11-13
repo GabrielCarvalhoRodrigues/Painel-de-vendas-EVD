@@ -57,6 +57,45 @@ describe('relatório de produtos', () => {
     expect(r.linhas.find((l) => l.vendedorCodigo === '009')).toMatchObject({ canal: 'oficina', produtoCodigo: '0287906', qtde: 4, valorTotal: 338 });
   });
 
+  it('extrai os veículos com placa do relatório do ERP', () => {
+    const texto = [
+      'MOVIMENTO DE CLIENTES',
+      'Data Final : 31/10/2026',
+      'Data Inicial : 01/10/2026',
+      'CLIENTE;TELEFONE;Nº DOC;DATA;;EMP;VEN;CIDADE;CPF/CNPJ;;CÓD;DESCRIÇÃO;;UN;CFOP;QTD;UNIT;VR.TOTAL;CUSTO;%MAR',
+      '"BALCAO";"";"D-1";05/10/2026;"";"001";"004";"";"";"";"0239024";"FILTRO CABINE";"";"UN";"5405";1,00;15,20;15,20;9,39;38,22',
+      '"ABEL ALVES";"85 99999-0000";"D-2";09/10/2026;"";"001";"009";"";"";"VEÍCULO: RENAULT RE-KWID 1.0 2020 BRANCO - QWS-2F81 - KM: 0000000001";"0287906";"OLEO 5W40";"";"LT";"5405";3,00;84,50;253,50;0;0',
+      '"ABEL ALVES";"85 99999-0000";"D-2";09/10/2026;"";"001";"009";"";"";"VEÍCULO: RENAULT RE-KWID 1.0 2020 BRANCO - QWS-2F81 - KM: 0000000001";"0101";"FILTRO OLEO";"";"UN";"5405";1,00;30,00;30,00;0;0',
+      '"ABEL ALVES";"85 99999-0000";"D-3";20/10/2026;"";"001";"004";"";"";"VEÍCULO: RENAULT RE-KWID 1.0 2020 BRANCO - QWS-2F81 - KM: 0000045210";"0287906";"OLEO 5W40";"";"LT";"5405";1,00;84,50;84,50;0;0',
+      '"TOTAL TRANSPORTES";"";"D-4";10/10/2026;"";"001";"009";"";"";"VEÍCULO: VW GOL 1.0 2015 PRATA - ABC-1234 - KM: 0000000001";"0287906";"OLEO 5W40";"";"LT";"5405";1,00;84,50;84,50;0;0',
+    ].join('\r\n');
+    const r = lerTextoProdutos(texto);
+    expect(r.veiculos).toHaveLength(2);
+    const [gol, kwid] = r.veiculos!;
+    expect(gol).toMatchObject({ placa: 'ABC1234', placaTexto: 'ABC-1234', descricao: 'VW GOL 1.0 2015 PRATA', ano: 2015, km: null, pedidos: 1 });
+    expect(kwid).toMatchObject({
+      placa: 'QWS2F81',
+      descricao: 'RENAULT RE-KWID 1.0 2020 BRANCO',
+      ano: 2020,
+      km: 45210,
+      clienteNome: 'ABEL ALVES',
+      clienteTelefone: '85 99999-0000',
+      vendedores: ['009', '004'],
+      primeiraData: '2026-10-09',
+      ultimaData: '2026-10-20',
+      pedidos: 2,
+      itens: 5,
+      valorTotal: 368,
+    });
+    expect(kwid.produtos.find((p) => p.codigo === '0287906')?.qtde).toBe(4);
+  });
+
+  it('lê a placa solta como veículo', () => {
+    const r = lerTextoProdutos(RELATORIO);
+    expect(r.veiculos!.map((v) => v.placa)).toEqual(['ABC1D23', 'XYZ9876']);
+    expect(r.veiculos![0]).toMatchObject({ descricao: '', pedidos: 1, itens: 3, valorTotal: 230 });
+  });
+
   it('classifica a placa', () => {
     expect(canalDaPlaca('VEÍCULO: FORD FO-KA 1.0 2020 BRANCO - ABC-1D23 - KM: 0000000001')).toBe('oficina');
     expect(canalDaPlaca('VEÍCULO: FORD FO-KA 1.0 2020 BRANCO')).toBe('balcao');

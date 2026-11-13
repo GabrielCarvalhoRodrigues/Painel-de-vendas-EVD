@@ -13,12 +13,90 @@ import { useInvalidarProdutos } from '../estado/ProdutosContext';
 import { ErroImportacao } from '../importacao/lerCsv';
 import { lerRelatorioProdutos } from '../importacao/lerProdutos';
 import type { RelatorioProdutos, RelatorioProdutosLido } from '../tipos';
-import { dataBR, dataHoraBR, int, num } from '../utils/formato';
+import { exportarExcel } from '../utils/exportar';
+import { dataBR, dataHoraBR, int, num, reais } from '../utils/formato';
 import { nomeMes } from '../utils/meses';
 
 interface Previa {
   lido: RelatorioProdutosLido;
   existentes: RelatorioProdutos[];
+}
+
+/** Veículos com placa encontrados no arquivo: lista e exportação para Excel. */
+function VeiculosDoArquivo({ lido }: { lido: RelatorioProdutosLido }) {
+  const [aberto, setAberto] = useState(false);
+  const veiculos = lido.veiculos ?? [];
+  if (!veiculos.length) return <div className="mt-1 text-gray-600">Nenhum veículo com placa no arquivo.</div>;
+  const temValor = veiculos.some((v) => v.valorTotal !== 0);
+  const temData = veiculos.some((v) => v.ultimaData);
+
+  function exportar() {
+    exportarExcel(
+      `veiculos-${lido.mes}.xlsx`,
+      `Veículos ${lido.mes}`,
+      veiculos.map((v) => ({
+        Placa: v.placaTexto,
+        Veículo: v.descricao,
+        Ano: v.ano,
+        KM: v.km,
+        Cliente: v.clienteNome,
+        Telefone: v.clienteTelefone,
+        Vendedor: v.vendedores.join(', '),
+        ...(temData ? { 'Primeira venda': v.primeiraData ? dataBR(v.primeiraData) : null, 'Última venda': v.ultimaData ? dataBR(v.ultimaData) : null } : {}),
+        Pedidos: v.pedidos,
+        Itens: Math.round(v.itens * 1000) / 1000,
+        ...(temValor ? { 'Valor total': Math.round(v.valorTotal * 100) / 100 } : {}),
+        Produtos: v.produtos.map((p) => `${num(p.qtde)}x ${p.nome}`).join('; '),
+      })),
+    );
+  }
+
+  return (
+    <div className="mt-1 text-gray-600">
+      <div className="flex flex-wrap items-center gap-3">
+        <span>{int(veiculos.length)} veículos com placa</span>
+        <button className="text-xs font-semibold text-evaldo-azul underline" onClick={() => setAberto((a) => !a)}>
+          {aberto ? 'Esconder' : 'Ver veículos'}
+        </button>
+        <button className="btn-secundario px-3 py-1 text-xs" onClick={exportar}>
+          ⤓ Exportar veículos
+        </button>
+      </div>
+      {aberto && (
+        <div className="mt-2 max-h-96 overflow-auto rounded border border-gray-200">
+          <table className="tabela">
+            <thead>
+              <tr>
+                <th>Placa</th>
+                <th>Veículo</th>
+                <th>KM</th>
+                <th>Cliente</th>
+                {temData && <th>Última venda</th>}
+                <th className="text-right">Itens</th>
+                {temValor && <th className="text-right">Valor</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {veiculos.map((v) => (
+                <tr key={v.placa} title={v.produtos.map((p) => `${num(p.qtde)}x ${p.nome}`).join('\n')}>
+                  <td className="whitespace-nowrap font-bold">{v.placaTexto}</td>
+                  <td>{v.descricao || '—'}</td>
+                  <td className="num">{v.km != null ? int(v.km) : '—'}</td>
+                  <td>
+                    {v.clienteNome || '—'}
+                    {v.clienteTelefone && <span className="block text-xs text-gray-500">{v.clienteTelefone}</span>}
+                  </td>
+                  {temData && <td>{v.ultimaData ? dataBR(v.ultimaData) : '—'}</td>}
+                  <td className="num">{num(v.itens)}</td>
+                  {temValor && <td className="num">{reais(v.valorTotal)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Importação do relatório de produtos vendidos (separado do relatório por cliente). */
@@ -108,7 +186,8 @@ export function ImportarProdutos() {
       <p className="mb-4 text-sm text-gray-600">
         Pedido com <strong>placa</strong> (coluna "VEÍCULO: … - ABC-1D23 - KM") conta como <strong>Vendas oficina</strong>; sem placa, como{' '}
         <strong>Vendas Balcão</strong>. Pode ser do mês até o momento: o mês fica marcado como parcial. Um arquivo com todos os vendedores é
-        separado pelo código do vendedor (coluna VEN).
+        separado pelo código do vendedor (coluna VEN). Os <strong>veículos com placa</strong> do arquivo aparecem na prévia (placa, veículo, KM,
+        cliente) e podem ser exportados para Excel.
       </p>
 
       <div
@@ -172,6 +251,7 @@ export function ImportarProdutos() {
                   {int(new Set(p.lido.linhas.map((l) => l.produtoCodigo)).size)} produtos · Vendas Balcão: {num(balcao)} itens · Vendas oficina:{' '}
                   {num(oficina)} itens
                 </div>
+                <VeiculosDoArquivo lido={p.lido} />
                 {p.existentes.length > 0 && (
                   <p className="mt-2 rounded bg-evaldo-amarelo-claro px-3 py-2 text-xs text-evaldo-azul-escuro">
                     ⚠ Vai substituir os produtos já importados de {p.existentes.map((r) => r.vendedorNome).join(', ')} nesse mês.
